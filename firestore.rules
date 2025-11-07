@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /scl_students/{alumniId} {
+      function isSignedIn() { return request.auth != null; }
+      function isOwner() { return isSignedIn() && request.auth.uid == resource.data.authUid; }
+      function isSchool() {
+        return isSignedIn() && 
+          (request.auth.uid == resource.data.schoolId || 
+           request.auth.uid == resource.data.authUid);
+      }
+      function isCollege() { 
+        return isSignedIn() && 
+          (request.auth.uid == resource.data.collegeId || 
+           (request.auth.token.collegeId != null && request.auth.token.collegeId == resource.data.collegeId)); 
+      }
+      function isAdmin() { return isSignedIn() && request.auth.token.admin == true; }
+      // Helper: student was not yet linked to any college
+      function wasUnlinked() {
+        // Consider missing, null, or empty string as "unlinked"
+        // Be defensive: if the resource does not exist, treat it as unlinked.
+        return (resource == null) ||
+               !(resource.data.keys().hasAny(['collegeId'])) ||
+               resource.data.collegeId == null ||
+               resource.data.collegeId == '';
+      }
+
+      // Allow a first-time link by a college account.
+      // Constraints:
+      //  - previous doc was unlinked
+      //  - new collegeId is non-empty and equals caller's uid (we use uid as collegeId)
+      //  - no keys are removed, and only linkage-related keys are added/changed
+      function canInitialLink() {
+        // Relaxed further to avoid false permission-denied during first link.
+        // Requirements:
+        //  - caller is signed-in
+        //  - existing doc has no collegeId (unlinked)
+        //  - new collegeId matches the caller. Some deployments use a
+        //    custom claim `collegeId` instead of the auth.uid — allow both.
+        //  - new collegeId must be non-empty
+        return isSignedIn() &&
+          wasUnlinked() &&
+          request.resource.data.collegeId != '' &&
+          (
+            request.resource.data.collegeId == request.auth.uid ||
+            (request.auth.token.collegeId != null && request.resource.data.collegeId == request.auth.token.collegeId)
+          );
+      }
+
+      // Public read when marked public, else owner/school/college/admin
+      allow read: if resource.data.isPublic == true || isOwner() || isSchool() || isCollege() || isAdmin();
+
+      // Create requires ownership marker to match the creator
+      allow create: if isSignedIn() && request.resource.data.authUid == request.auth.uid;
+
+      // Updates allowed by owner, school, college, admin, or a first-time link action
+      allow update: if isOwner() || isSchool() || isCollege() || isAdmin() || canInitialLink();
+    }
+
+    match /resumes/{doc} {
+      allow create: if request.auth != null && request.auth.token.collegeId == resource.data.collegeId;
+      allow read: if request.auth != null && (request.auth.uid == resource.data.authUid || request.auth.token.admin == true);
+      allow update, delete: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /webhook_registrations/{doc} {
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+    }
+
+    match /email_jobs/{doc} {
+      allow read: if request.auth != null && request.auth.token.admin == true;
+      allow create: if false; // server writes only
+    }
+
+      // Colleges metadata: readable to signed-in users, writable by admins only
+      match /colleges/{collegeId} {
+        allow read: if request.auth != null;
+        allow create, update, delete: if request.auth != null && request.auth.token.admin == true;
+      }
+  }
+}

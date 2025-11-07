@@ -1,0 +1,7 @@
+# Ignore local Firebase service account and environment files
+serviceAccount.json
+.env
+
+# Python cache
+__pycache__/
+.pytest_cache/
