@@ -2,10 +2,16 @@
 node_modules/
 npm-debug.log
 yarn-error.log
-# Vite / build
+
+# Build
 dist/
 build/
-# Editor
+
+# Editors / OS
 .vscode/
 .idea/
 .DS_Store
+
+# Env
+.env
+.env.local
