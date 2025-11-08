@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import logging
 
 """FastAPI application factory and router registration.
 
@@ -57,3 +58,39 @@ def healthz():
     Useful for platform health probes without touching Firestore or Firebase.
     """
     return {"ok": True}
+
+
+@app.get("/_info")
+def app_info():
+    """Return minimal environment/debug info (non-sensitive)."""
+    import sys
+    import platform
+    import os as _os
+    return {
+        "ok": True,
+        "python": sys.version.split()[0],
+        "platform": platform.platform(),
+        "fastapi": getattr(FastAPI, "__module__", "fastapi"),
+        "cwd": _os.getcwd(),
+    }
+
+
+# Debug exception logging middleware (enabled when APP_DEBUG=1)
+if os.getenv("APP_DEBUG", "0") == "1":
+    log = logging.getLogger("app.debug")
+
+    @app.middleware("http")
+    async def error_logging_middleware(request, call_next):  # type: ignore
+        try:
+            return await call_next(request)
+        except Exception as e:  # pragma: no cover
+            log.exception("Unhandled error: %s", e)
+            from fastapi.responses import JSONResponse
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "ok": False,
+                    "error": str(e.__class__.__name__),
+                    "detail": str(e),
+                },
+            )
