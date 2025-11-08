@@ -8,7 +8,7 @@ set -e
 
 if [ "${APP_DEBUG:-0}" = "1" ]; then
   echo "[start] Debug mode enabled: starting uvicorn directly"
-  exec uvicorn entrypoint:app --host 0.0.0.0 --port ${PORT:-8000} --reload --log-level debug
+  exec uvicorn entrypoint:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug
 else
   exec gunicorn \
     -w ${WEB_CONCURRENCY:-4} \
