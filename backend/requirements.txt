@@ -1,4 +1,4 @@
-fastapi>=0.110.0
+fastapi==0.110.0  # Pin for stability with pydantic v2 and Python 3.11
 uvicorn[standard]==0.22.0
 firebase-admin==6.1.0
 # Use a compatible google-cloud-pubsub version range; exact 3.10.0 may be unavailable on PyPI

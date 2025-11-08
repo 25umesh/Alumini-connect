@@ -48,3 +48,12 @@ app.include_router(bulk_email_router)
 @app.get("/")
 def root():
     return {"ok": True, "msg": "SCL API running"}
+
+
+@app.get("/healthz")
+def healthz():
+    """Lightweight health check that doesn't require external services.
+
+    Useful for platform health probes without touching Firestore or Firebase.
+    """
+    return {"ok": True}

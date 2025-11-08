@@ -6,7 +6,12 @@ services:
     startCommand: bash start.sh
     envVars:
       - key: PYTHON_VERSION
-        value: 3.13.4
+        value: 3.11.8  # Downgrade to stable version supported by firebase_admin
+      - key: FIREBASE_SERVICE_ACCOUNT
+        value: backend/serviceAccount.json
+      # Optionally define frontend origins for CORS (adjust as needed)
+      - key: FRONTEND_ORIGINS
+        value: http://localhost:5173
       # PYTHONPATH no longer required due to relative imports and entrypoint shim
       # - key: PYTHONPATH
       #   value: /opt/render/project/src/backend

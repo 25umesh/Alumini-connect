@@ -5,7 +5,6 @@ Admins (token.admin == True) may specify targetId explicitly for either scope.
 Non-admin callers default to token uid for school scope.
 """
 from fastapi import APIRouter, Depends, HTTPException
-from firebase_admin import firestore
 from ..auth import verify_firebase_token
 from ..models import BulkEmailRequest
 from ..services.email_service import send_bulk_emails
@@ -31,7 +30,15 @@ def send_bulk(
     if not target_id:
         raise HTTPException(status_code=400, detail="Missing targetId")
 
-    db = firestore.client()
+    # Import firestore lazily to avoid crashing if firebase_admin isn't present
+    try:
+        from firebase_admin import firestore  # type: ignore
+        db = firestore.client()
+    except Exception as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Firestore unavailable: {e}"
+        )
     collection = db.collection("scl_students")
     field = "schoolId" if scope == "school" else "collegeId"
 
