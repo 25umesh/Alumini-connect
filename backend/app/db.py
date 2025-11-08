@@ -1,5 +1,4 @@
 # app/db.py
-from google.cloud import pubsub_v1
 from .config import PROJECT_ID, PUBSUB_EMAIL_TOPIC
 import logging
 
@@ -171,6 +170,9 @@ def publish_student_updated(alumni_id: str, changes: dict):
     global publisher
     if publisher is None:
         try:
+            # Lazy import of Pub/Sub to avoid startup failures if package
+            # isn't installed/compatible in the environment.
+            from google.cloud import pubsub_v1  # type: ignore
             publisher = pubsub_v1.PublisherClient()
         except Exception as e:
             log.info("Publisher not available; skipping publish: %s", e)

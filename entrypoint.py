@@ -10,9 +10,41 @@ from __future__ import annotations
 import os
 import sys
 from importlib import import_module
+from typing import Any
+
+# Optional: build a tiny fallback FastAPI app when imports fail so Render
+# serves JSON instead of a blank 500 page. This is enabled automatically
+# when we can't import the real app.
 
 
-def _import_fastapi_app():
+def _make_fallback_app(err: Exception):
+    try:
+        from fastapi import FastAPI
+    except Exception:
+        # If FastAPI itself isn't importable, raise original error
+        raise err
+    app = FastAPI(title="Fallback - Backend Import Error")
+
+    @app.get("/healthz")
+    def healthz():
+        return {"ok": True, "status": "degraded"}
+
+    @app.get("/_errors")
+    def errors():
+        return {
+            "ok": False,
+            "error": err.__class__.__name__,
+            "detail": str(err),
+        }
+
+    @app.get("/")
+    def root():
+        return {"ok": False, "message": "Backend import failed. See /_errors"}
+
+    return app
+
+
+def _import_fastapi_app() -> Any:
     """Return the FastAPI app instance from backend/app/main.py.
 
     Tries several strategies to be resilient to different PYTHONPATH layouts:
@@ -42,4 +74,9 @@ def _import_fastapi_app():
 
 
 # Expose the ASGI application for Gunicorn/Uvicorn workers
-app = _import_fastapi_app()
+try:
+    app = _import_fastapi_app()
+except Exception as e:
+    # Fall back to a minimal app so the service serves responses and
+    # exposes the import error at /_errors instead of crashing.
+    app = _make_fallback_app(e)

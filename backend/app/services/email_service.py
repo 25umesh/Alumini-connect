@@ -6,7 +6,6 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
-from google.cloud import pubsub_v1
 from ..config import (
     SENDGRID_API_KEY,
     PROJECT_ID,
@@ -90,6 +89,7 @@ def enqueue_email_job(job: dict):
     global publisher
     if publisher is None:
         try:
+            from google.cloud import pubsub_v1  # type: ignore
             publisher = pubsub_v1.PublisherClient()
         except Exception as e:
             log.info("Pub/Sub unavailable; skipping enqueue: %s", e)
