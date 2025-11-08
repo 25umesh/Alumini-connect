@@ -2,6 +2,7 @@
 from fastapi import FastAPI
 from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import os
 import logging
 
@@ -31,7 +32,7 @@ if os.getenv("APP_DEBUG", "0") == "1":  # pragma: no cover - runtime env
         level=logging.DEBUG,
         format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
     )
-else:  # ensure at least INFO level output for startup diagnostics
+else:
     logging.basicConfig(
         level=logging.INFO,
         format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
@@ -65,16 +66,12 @@ except Exception as e:  # pragma: no cover - import resilience
     # Leave app in degraded mode; fallback endpoints still work.
 
 
-@app.get("/")
-def root():
+@app.get("/api")
+def api_root():
     return {"ok": True, "msg": "SCL API running"}
 
 
-# Some platforms/bots send HEAD to "/"; FastAPI normally auto-adds HEAD for
-# GET routes, but explicitly defining it avoids intermittent 405s from proxies.
-@app.head("/")
-def root_head():  # pragma: no cover - simple status path
-    return Response(status_code=200)
+# HEAD / will be served by StaticFiles once SPA is mounted.
 
 
 @app.get("/healthz")
@@ -129,6 +126,25 @@ def _startup_banner():  # pragma: no cover - env dependent
         log.info("Firebase service account env set: %s", svc_account)
     else:
         log.warning("Firebase service account env NOT set")
+
+#
+# Mount SPA at root if build exists
+# (placed after startup banner definition; add extra blank line for style)
+
+
+try:  # pragma: no cover - runtime dependent
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _repo_root = os.path.dirname(os.path.dirname(_here))
+    _dist_dir = os.path.join(_repo_root, "frontend", "dist")
+    if os.path.isdir(_dist_dir):
+        app.mount("/", StaticFiles(directory=_dist_dir, html=True), name="spa")
+        log.info("Mounted SPA static files from %s", _dist_dir)
+    else:
+        log.warning(
+            "SPA dist directory not found: %s (skipping mount)", _dist_dir
+        )
+except Exception as _e:  # pragma: no cover
+    log.exception("Failed to mount SPA: %s", _e)
 
 
 # Debug exception logging middleware (enabled when APP_DEBUG=1)
