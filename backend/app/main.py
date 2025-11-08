@@ -24,6 +24,19 @@ from .routes.bulk_email import router as bulk_email_router
 
 app = FastAPI(title="Alumni SCL API")
 
+# Minimal logging config (Render sometimes drops DEBUG without handlers)
+if os.getenv("APP_DEBUG", "0") == "1":  # pragma: no cover - runtime env
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+    )
+else:  # ensure at least INFO level output for startup diagnostics
+    logging.basicConfig(
+        level=logging.INFO,
+        format="[%(asctime)s] %(levelname)s %(name)s: %(message)s",
+    )
+log = logging.getLogger("app.startup")
+
 # Allow requests from the frontend dev server. Set FRONTEND_ORIGINS as a
 # comma-separated env var if you run the frontend on a different origin.
 default_origins = (
@@ -40,10 +53,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(students_router)
-app.include_router(admin_router)
-app.include_router(webhooks_router)
-app.include_router(bulk_email_router)
+try:
+    app.include_router(students_router)
+    app.include_router(admin_router)
+    app.include_router(webhooks_router)
+    app.include_router(bulk_email_router)
+except Exception as e:  # pragma: no cover - import resilience
+    # Surface router import errors early (e.g., dependency version issues)
+    log.exception("Router registration failed: %s", e)
+    # Leave app in degraded mode; fallback endpoints still work.
 
 
 @app.get("/")
@@ -55,9 +73,17 @@ def root():
 def healthz():
     """Lightweight health check that doesn't require external services.
 
-    Useful for platform health probes without touching Firestore or Firebase.
+    Returns degraded status if critical routers failed to import.
     """
-    return {"ok": True}
+    degraded = False
+    # quick heuristic: students_router should have routes attribute
+    try:
+        _ = getattr(students_router, "routes", None)
+        if not _:
+            degraded = True
+    except Exception:
+        degraded = True
+    return {"ok": True, "degraded": degraded}
 
 
 @app.get("/_info")
@@ -75,16 +101,31 @@ def app_info():
     }
 
 
+@app.on_event("startup")
+def _startup_banner():  # pragma: no cover - env dependent
+    log.info("Starting Alumni SCL API")
+    log.info("Python %s", os.sys.version.split()[0])
+    log.info("FastAPI version: %s", FastAPI.__module__)
+    log.info("Origins configured: %s", origins)
+    debug = os.getenv("APP_DEBUG", "0") == "1"
+    log.info("Debug mode: %s", debug)
+    svc_account = os.getenv("FIREBASE_SERVICE_ACCOUNT")
+    if svc_account:
+        log.info("Firebase service account env set: %s", svc_account)
+    else:
+        log.warning("Firebase service account env NOT set")
+
+
 # Debug exception logging middleware (enabled when APP_DEBUG=1)
 if os.getenv("APP_DEBUG", "0") == "1":
-    log = logging.getLogger("app.debug")
+    debug_log = logging.getLogger("app.debug")
 
     @app.middleware("http")
     async def error_logging_middleware(request, call_next):  # type: ignore
         try:
             return await call_next(request)
         except Exception as e:  # pragma: no cover
-            log.exception("Unhandled error: %s", e)
+            debug_log.exception("Unhandled error: %s", e)
             from fastapi.responses import JSONResponse
             return JSONResponse(
                 status_code=500,

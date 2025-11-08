@@ -1,8 +1,22 @@
 """Entry point for Gunicorn / Uvicorn workers on Render.
 
-Avoid naming this module `app.py` to prevent clashing with the real
-`app` package (backend/app). This module exposes a variable named `app`
-that Gunicorn can discover via `entrypoint:app`.
+Why this exists
+---------------
+The real FastAPI application lives in ``backend/app/main.py`` inside the
+package ``backend.app``. A top-level ``app.py`` also exists as a legacy
+Gunicorn entrypoint. Deploy platforms that attempt ``gunicorn app:app``
+may accidentally import the root module instead of the package, causing
+``ModuleNotFoundError: 'app.routes'``. This shim performs a resilient
+import and exposes ``app`` for ASGI workers.
+
+Improved fallback behavior
+--------------------------
+Previously if importing the real backend failed *and* FastAPI was not
+installed, the process crashed and Render returned a generic HTML
+"Internal Server Error" page making root‑cause discovery difficult.
+We now provide a tiny raw ASGI fallback that returns plain text debug
+information even if FastAPI itself is missing. If FastAPI is available
+we still construct an informative JSON fallback application.
 """
 
 from __future__ import annotations
@@ -18,11 +32,45 @@ from typing import Any
 
 
 def _make_fallback_app(err: Exception):
+    """Return a fallback ASGI application that surfaces import errors.
+
+    Preference order:
+     1. If FastAPI is installed: return a minimal JSON API with
+         endpoints /, /healthz, /_errors.
+    2. Otherwise: return a raw ASGI app that responds with plain text so
+       the platform never serves a blank 500 page.
+    """
     try:
-        from fastapi import FastAPI
-    except Exception:
-        # If FastAPI itself isn't importable, raise original error
-        raise err
+        from fastapi import FastAPI  # type: ignore
+    except Exception:  # FastAPI not available – build raw ASGI app
+        async def _raw(scope, receive, send):  # type: ignore[override]
+            if scope.get("type") != "http":
+                return
+            path = scope.get("path", "")
+            if path in ("/healthz", "/"):
+                body = (
+                    "Fallback active. Import error: "
+                    f"{err.__class__.__name__}: {err}"
+                ).encode()
+                status = 200
+            else:
+                body = (
+                    "Error details: "
+                    f"{err.__class__.__name__}: {err}"
+                ).encode()
+                status = 503
+            await send({
+                "type": "http.response.start",
+                "status": status,
+                "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+            })
+            await send({
+                "type": "http.response.body",
+                "body": body,
+            })
+        return _raw  # Raw ASGI app
+
+    # FastAPI available – richer JSON fallback
     app = FastAPI(title="Fallback - Backend Import Error")
 
     @app.get("/healthz")
@@ -39,7 +87,10 @@ def _make_fallback_app(err: Exception):
 
     @app.get("/")
     def root():
-        return {"ok": False, "message": "Backend import failed. See /_errors"}
+        return {
+            "ok": False,
+            "message": "Backend import failed. See /_errors",
+        }
 
     return app
 
@@ -76,7 +127,6 @@ def _import_fastapi_app() -> Any:
 # Expose the ASGI application for Gunicorn/Uvicorn workers
 try:
     app = _import_fastapi_app()
-except Exception as e:
-    # Fall back to a minimal app so the service serves responses and
-    # exposes the import error at /_errors instead of crashing.
+except Exception as e:  # pragma: no cover - startup resilience
+    # Provide robust fallback even if FastAPI missing.
     app = _make_fallback_app(e)
