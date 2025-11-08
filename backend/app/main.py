@@ -1,5 +1,6 @@
 # app/main.py
 from fastapi import FastAPI
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import logging
@@ -69,6 +70,13 @@ def root():
     return {"ok": True, "msg": "SCL API running"}
 
 
+# Some platforms/bots send HEAD to "/"; FastAPI normally auto-adds HEAD for
+# GET routes, but explicitly defining it avoids intermittent 405s from proxies.
+@app.head("/")
+def root_head():  # pragma: no cover - simple status path
+    return Response(status_code=200)
+
+
 @app.get("/healthz")
 def healthz():
     """Lightweight health check that doesn't require external services.
@@ -84,6 +92,13 @@ def healthz():
     except Exception:
         degraded = True
     return {"ok": True, "degraded": degraded}
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():  # pragma: no cover - browser convenience route
+    # Return empty 204 to avoid noisy 404s in logs. Frontend serves the actual
+    # favicon; backend API doesn't need to provide one.
+    return Response(status_code=204)
 
 
 @app.get("/_info")
