@@ -3,10 +3,22 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 
-from app.routes.students import router as students_router
-from app.routes.admin import router as admin_router
-from app.routes.webhooks import router as webhooks_router
-from app.routes.bulk_email import router as bulk_email_router
+"""FastAPI application factory and router registration.
+
+Note on imports: This package lives under ``backend.app``. A top-level
+``app.py`` module also exists at the repository root as a Gunicorn entrypoint
+(``gunicorn app:app``). Absolute imports like ``from app.routes`` cause Python
+to resolve the root ``app.py`` instead of this package, producing
+``ModuleNotFoundError: No module named 'app.routes'`` during deployment.
+
+Using explicit relative imports (``from .routes``) ensures the backend package
+resolves correctly regardless of how the application is launched.
+"""
+
+from .routes.students import router as students_router
+from .routes.admin import router as admin_router
+from .routes.webhooks import router as webhooks_router
+from .routes.bulk_email import router as bulk_email_router
 
 
 app = FastAPI(title="Alumni SCL API")
