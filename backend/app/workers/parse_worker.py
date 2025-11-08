@@ -6,7 +6,7 @@ from google.cloud import firestore
 
 import json
 import re
-from app.config import PROJECT_ID, PUBSUB_PARSE_TOPIC
+from ..config import PROJECT_ID, PUBSUB_PARSE_TOPIC
 
 subscriber = pubsub_v1.SubscriberClient()
 storage_client = storage.Client()

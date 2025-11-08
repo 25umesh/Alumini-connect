@@ -1,7 +1,7 @@
 import re
 from typing import Dict, Any, List
 import logging
-from app.db import patch_student
+from ..db import patch_student
 
 log = logging.getLogger(__name__)
 

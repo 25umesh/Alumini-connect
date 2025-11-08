@@ -6,9 +6,9 @@ Non-admin callers default to token uid for school scope.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from firebase_admin import firestore
-from app.auth import verify_firebase_token
-from app.models import BulkEmailRequest
-from app.services.email_service import send_bulk_emails
+from ..auth import verify_firebase_token
+from ..models import BulkEmailRequest
+from ..services.email_service import send_bulk_emails
 
 router = APIRouter(prefix="/bulk-email", tags=["bulk-email"])
 

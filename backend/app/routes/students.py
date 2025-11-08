@@ -1,10 +1,9 @@
 # app/routes/students.py
 from fastapi import APIRouter, Depends, HTTPException
-from app.models import StudentCreate, StudentPatch
-from app.auth import verify_firebase_token
-from app.db import create_student_doc, get_student, patch_student
-from app.models import ResumeParsePayload
-from app.services.resume_service import parse_and_update_student
+from ..models import StudentCreate, StudentPatch, ResumeParsePayload
+from ..auth import verify_firebase_token
+from ..db import create_student_doc, get_student, patch_student
+from ..services.resume_service import parse_and_update_student
 
 router = APIRouter(prefix="/scl/students", tags=["students"])
 

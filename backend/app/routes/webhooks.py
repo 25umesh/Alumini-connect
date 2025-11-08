@@ -1,7 +1,7 @@
 # app/routes/webhooks.py
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.auth import verify_firebase_token
+from ..auth import verify_firebase_token
 from firebase_admin import firestore
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])

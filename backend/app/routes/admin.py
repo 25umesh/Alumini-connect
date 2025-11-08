@@ -1,11 +1,13 @@
 # app/routes/admin.py
 from fastapi import APIRouter, Depends, HTTPException
-from app.models import BulkUploadPayload
-from app.auth import verify_firebase_token
-from app.db import create_student_doc
-from app.services.email_service import enqueue_email_job
-from app.models import CollegeCreate
-from app.db import create_college_doc, link_student_to_college
+from ..models import BulkUploadPayload, CollegeCreate
+from ..auth import verify_firebase_token
+from ..db import (
+    create_student_doc,
+    create_college_doc,
+    link_student_to_college,
+)
+from ..services.email_service import enqueue_email_job
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

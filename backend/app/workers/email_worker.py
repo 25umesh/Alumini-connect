@@ -2,8 +2,8 @@
 import json
 from google.cloud import pubsub_v1
 from google.cloud import firestore
-from app.services.email_service import send_email_direct
-from app.config import PROJECT_ID, PUBSUB_EMAIL_TOPIC
+from ..services.email_service import send_email_direct
+from ..config import PROJECT_ID, PUBSUB_EMAIL_TOPIC
 
 subscriber = pubsub_v1.SubscriberClient()
 db = firestore.client()

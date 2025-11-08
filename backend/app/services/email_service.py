@@ -7,7 +7,7 @@ from email.mime.text import MIMEText
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from google.cloud import pubsub_v1
-from app.config import (
+from ..config import (
     SENDGRID_API_KEY,
     PROJECT_ID,
     PUBSUB_EMAIL_TOPIC,

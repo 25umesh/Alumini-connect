@@ -1,11 +1,11 @@
-fastapi>=0.100.0
+fastapi>=0.110.0
 uvicorn[standard]==0.22.0
 firebase-admin==6.1.0
 # Use a compatible google-cloud-pubsub version range; exact 3.10.0 may be unavailable on PyPI
 google-cloud-pubsub==2.33.0
 google-cloud-storage==2.11.0
 # Use Pydantic v2 (compatible with newer Python 3.13) and a FastAPI release that supports it
- pydantic==2.12.4
+pydantic==2.12.4
 python-dotenv==1.0.0
 requests==2.31.0
 sendgrid==6.12.5
