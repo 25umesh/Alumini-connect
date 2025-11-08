@@ -138,3 +138,15 @@ class _AsgiToWsgi:  # internal adapter
 
 # Expose a WSGI callable for gunicorn sync workers
 app = _AsgiToWsgi(_fastapi_app)
+
+# Emit a small banner to make it obvious in logs when the WSGI adapter is
+# active (i.e., when Gunicorn is using the default sync worker instead of an
+# ASGI worker). This helps diagnose deployments that are not using start.sh.
+try:  # pragma: no cover - runtime only
+    import platform as _platform
+    print(
+        "[app.py] WSGI adapter wrapping FastAPI app | "
+        f"Python={_platform.python_version()}"
+    )
+except Exception:
+    pass

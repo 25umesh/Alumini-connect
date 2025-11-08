@@ -127,6 +127,29 @@ def _import_fastapi_app() -> Any:
 # Expose the ASGI application for Gunicorn/Uvicorn workers
 try:
     app = _import_fastapi_app()
+    # Lightweight banner to help diagnose Render worker/import behavior
+    try:
+        import platform as _platform
+        print(
+            f"[entrypoint] Loaded backend.app.main:app successfully | "
+            f"Python={_platform.python_version()} | PID={os.getpid()}"
+        )
+    except Exception:
+        # Avoid any failure if stdout/stderr is not writable in some envs
+        pass
 except Exception as e:  # pragma: no cover - startup resilience
     # Provide robust fallback even if FastAPI missing.
+    try:
+        import platform as _platform
+        msg = (
+            "[entrypoint] Falling back to minimal ASGI app due to import "
+            "error: "
+        )
+        details = (
+            f"{e.__class__.__name__}: {e} | "
+            f"Python={_platform.python_version()} | PID={os.getpid()}"
+        )
+        print(msg + details)
+    except Exception:
+        pass
     app = _make_fallback_app(e)
