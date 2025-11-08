@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# Run gunicorn from the repo root but tell it to chdir into backend so the
-# 'app' package (backend/app) is importable regardless of the invoking shell.
+# Production startup (Render / Linux): run Gunicorn directly against the
+# backend package app. The root app.py re-exports this as `app` for
+# compatibility with `gunicorn app:app`, but using the explicit package path
+# avoids any ambiguity.
+
 exec gunicorn \
-	--chdir backend \
-	-w 4 \
-	-k uvicorn.workers.UvicornWorker \
-	app.main:app \
-	--bind 0.0.0.0:${PORT:-8000}
+  -w ${WEB_CONCURRENCY:-4} \
+  -k uvicorn.workers.UvicornWorker \
+  backend.app.main:app \
+  --bind 0.0.0.0:${PORT:-8000}
